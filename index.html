@@ -66,6 +66,11 @@
             
             <!-- Button Group (Navigation) -->
             <div class="flex space-x-2 w-full sm:w-auto justify-between sm:justify-end">
+                <!-- INSTALL BUTTON (Hidden by default, shown via JS) -->
+                <button type="button" id="install-btn" class="hidden nav-btn bg-green-500 hover:bg-green-400 px-3 py-1.5 rounded text-sm transition flex items-center shadow-sm flex-1 sm:flex-none justify-center font-bold text-white border border-green-600">
+                    <i class="fas fa-download mr-1"></i> App
+                </button>
+
                 <button type="button" onclick="toggleView('input')" id="nav-input" class="nav-btn bg-blue-800 hover:bg-blue-700 px-3 py-1.5 rounded text-sm transition flex items-center shadow-sm flex-1 sm:flex-none justify-center">
                     <i class="fas fa-plus-circle mr-1"></i> Neu
                 </button>
@@ -285,6 +290,10 @@
         // Modal Callback storage
         let modalConfirmCallback = null;
 
+        // PWA Install Prompt
+        let deferredPrompt;
+        const installBtn = document.getElementById('install-btn');
+
         // --- Initialization ---
         document.addEventListener('DOMContentLoaded', () => {
             setupTimeInputs();
@@ -304,6 +313,30 @@
             document.getElementById('modal-confirm').addEventListener('click', () => {
                 if (modalConfirmCallback) modalConfirmCallback();
                 closeModal();
+            });
+
+            // PWA Install Listeners
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                if(installBtn) installBtn.classList.remove('hidden');
+            });
+
+            if(installBtn) {
+                installBtn.addEventListener('click', async () => {
+                    installBtn.classList.add('hidden');
+                    if (deferredPrompt) {
+                        deferredPrompt.prompt();
+                        const { outcome } = await deferredPrompt.userChoice;
+                        deferredPrompt = null;
+                    }
+                });
+            }
+
+            window.addEventListener('appinstalled', () => {
+                if(installBtn) installBtn.classList.add('hidden');
+                deferredPrompt = null;
+                showToast("App erfolgreich installiert!");
             });
         });
 
