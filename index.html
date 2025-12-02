@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Arbeitszeitjournal</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2563eb">
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f3f4f6;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .input-field {
+            transition: all 0.2s;
+        }
+        .input-field:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+        }
+        /* Hide scrollbar for clean look */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        /* Shift Button Styles */
+        .shift-btn.active {
+            background-color: #eff6ff;
+            border-color: #2563eb;
+            color: #2563eb;
+            font-weight: bold;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        /* Modal Animation */
+        .modal-enter {
+            opacity: 0;
+            transform: scale(0.9);
+        }
+        .modal-enter-active {
+            opacity: 1;
+            transform: scale(1);
+            transition: opacity 0.2s, transform 0.2s;
+        }
+    </style>
+</head>
+<body class="pb-20">
+
+    <!-- Header -->
+    <header class="bg-blue-600 text-white p-4 shadow-lg sticky top-0 z-50">
+        <div class="flex justify-between items-center max-w-2xl mx-auto">
+            <h1 class="text-xl font-bold hidden sm:block"><i class="fas fa-clock mr-2"></i>Arbeitszeit</h1>
+            
+            <!-- Button Group (Navigation) -->
+            <div class="flex space-x-2 w-full sm:w-auto justify-between sm:justify-end">
+                <button type="button" onclick="toggleView('input')" id="nav-input" class="nav-btn bg-blue-800 hover:bg-blue-700 px-3 py-1.5 rounded text-sm transition flex items-center shadow-sm flex-1 sm:flex-none justify-center">
+                    <i class="fas fa-plus-circle mr-1"></i> Neu
+                </button>
+                <button type="button" onclick="toggleView('list')" id="nav-list" class="nav-btn bg-blue-500 hover:bg-blue-400 px-3 py-1.5 rounded text-sm transition flex items-center shadow-sm flex-1 sm:flex-none justify-center">
+                    <i class="fas fa-list-ul mr-1"></i> Aktuell
+                </button>
+                <button type="button" onclick="toggleView('archive')" id="nav-archive" class="nav-btn bg-blue-500 hover:bg-blue-400 px-3 py-1.5 rounded text-sm transition flex items-center shadow-sm flex-1 sm:flex-none justify-center">
+                    <i class="fas fa-archive mr-1"></i> Archiv
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-2xl mx-auto p-4 space-y-6">
+
+        <!-- VIEW 1: Input Form (Neuer Eintrag) -->
+        <main id="view-input" class="view-section">
+            <div class="bg-white rounded-xl shadow-md p-5 border border-gray-100">
+                <h2 class="text-gray-700 font-semibold mb-4 border-b pb-2">Neuer Eintrag</h2>
+                
+                <!-- Main Work Times -->
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="col-span-2">
+                        <label class="text-xs text-gray-500 font-bold uppercase">Datum</label>
+                        <input type="date" id="date" class="input-field w-full mt-1 p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 text-lg outline-none">
+                    </div>
+
+                    <!-- Shift Selection -->
+                    <div class="col-span-2">
+                        <label class="text-xs text-gray-500 font-bold uppercase mb-2 block">Schicht (Typ Smeny)</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button type="button" onclick="setShift('morning')" id="btn-morning" class="shift-btn border border-gray-200 rounded-lg py-2 px-1 text-sm text-gray-600 bg-white hover:bg-gray-50 flex flex-col items-center justify-center gap-1 transition-colors active">
+                                <i class="fas fa-sun text-yellow-500"></i> Früh
+                            </button>
+                            <button type="button" onclick="setShift('afternoon')" id="btn-afternoon" class="shift-btn border border-gray-200 rounded-lg py-2 px-1 text-sm text-gray-600 bg-white hover:bg-gray-50 flex flex-col items-center justify-center gap-1 transition-colors">
+                                <i class="fas fa-cloud-sun text-orange-500"></i> Spät
+                            </button>
+                            <button type="button" onclick="setShift('night')" id="btn-night" class="shift-btn border border-gray-200 rounded-lg py-2 px-1 text-sm text-gray-600 bg-white hover:bg-gray-50 flex flex-col items-center justify-center gap-1 transition-colors">
+                                <i class="fas fa-moon text-indigo-500"></i> Nacht
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="text-xs text-gray-500 font-bold uppercase text-green-600">Arbeit Beginn</label>
+                        <input type="tel" id="kommen" placeholder="06:00" maxlength="5" class="time-mask draft-input input-field w-full mt-1 p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 text-lg outline-none font-mono">
+                    </div>
+                    
+                    <div>
+                        <label class="text-xs text-gray-500 font-bold uppercase text-red-600">Arbeit Ende</label>
+                        <input type="tel" id="gehen" placeholder="14:00" maxlength="5" class="time-mask draft-input input-field w-full mt-1 p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 text-lg outline-none font-mono">
+                    </div>
+                </div>
+
+                <!-- Pauses Section -->
+                <div class="mb-6 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                    <div class="grid grid-cols-7 gap-2 mb-2 text-xs text-gray-400 font-bold uppercase text-center">
+                        <div class="col-span-1 pt-2">#</div>
+                        <div class="col-span-3">Pause Gehen (Start)</div>
+                        <div class="col-span-3">Pause Kommen (Ende)</div>
+                    </div>
+
+                    <!-- Pause 1 -->
+                    <div class="grid grid-cols-7 gap-2 items-center mb-2">
+                        <div class="col-span-1 text-center font-bold text-gray-400">1</div>
+                        <div class="col-span-3">
+                            <input type="tel" id="p1_start" placeholder="HH:MM" maxlength="5" class="time-mask draft-input input-field w-full p-2 bg-white border border-gray-200 rounded text-center text-sm outline-none font-mono">
+                        </div>
+                        <div class="col-span-3">
+                            <input type="tel" id="p1_end" placeholder="HH:MM" maxlength="5" class="time-mask draft-input input-field w-full p-2 bg-white border border-gray-200 rounded text-center text-sm outline-none font-mono">
+                        </div>
+                    </div>
+
+                    <!-- Pause 2 -->
+                    <div class="grid grid-cols-7 gap-2 items-center mb-2">
+                        <div class="col-span-1 text-center font-bold text-gray-400">2</div>
+                        <div class="col-span-3">
+                            <input type="tel" id="p2_start" placeholder="HH:MM" maxlength="5" class="time-mask draft-input input-field w-full p-2 bg-white border border-gray-200 rounded text-center text-sm outline-none font-mono">
+                        </div>
+                        <div class="col-span-3">
+                            <input type="tel" id="p2_end" placeholder="HH:MM" maxlength="5" class="time-mask draft-input input-field w-full p-2 bg-white border border-gray-200 rounded text-center text-sm outline-none font-mono">
+                        </div>
+                    </div>
+
+                    <!-- Pause 3 -->
+                    <div class="grid grid-cols-7 gap-2 items-center">
+                        <div class="col-span-1 text-center font-bold text-gray-400">3</div>
+                        <div class="col-span-3">
+                            <input type="tel" id="p3_start" placeholder="HH:MM" maxlength="5" class="time-mask draft-input input-field w-full p-2 bg-white border border-gray-200 rounded text-center text-sm outline-none font-mono">
+                        </div>
+                        <div class="col-span-3">
+                            <input type="tel" id="p3_end" placeholder="HH:MM" maxlength="5" class="time-mask draft-input input-field w-full p-2 bg-white border border-gray-200 rounded text-center text-sm outline-none font-mono">
+                        </div>
+                    </div>
+                </div>
+
+                <button type="button" onclick="addEntry()" class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-4 rounded-xl shadow-md transition transform active:scale-95 flex justify-center items-center text-lg">
+                    <i class="fas fa-check-circle mr-2"></i> FERTIG
+                </button>
+            </div>
+        </main>
+
+        <!-- VIEW 2: Current List (Aktuelle Einträge) -->
+        <main id="view-list" class="view-section hidden">
+            <!-- Archive Prompt -->
+            <div id="archive-prompt" class="hidden mb-4 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded shadow-sm">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="text-yellow-700 font-bold">Monat voll?</p>
+                        <p class="text-yellow-600 text-sm">Du hast genug Einträge gesammelt.</p>
+                    </div>
+                    <button type="button" onclick="confirmArchive()" class="bg-yellow-500 text-white px-4 py-2 rounded shadow hover:bg-yellow-600 transition text-sm font-bold">
+                        Jetzt Archivieren
+                    </button>
+                </div>
+            </div>
+
+            <!-- Current List Table -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
+                <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+                    <h3 class="font-bold text-gray-700">Aktuelle Einträge</h3>
+                    <span id="entry-count" class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">0 Tage</span>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-gray-500">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-4 py-3">Datum</th>
+                                <th scope="col" class="px-4 py-3">Zeit</th>
+                                <th scope="col" class="px-4 py-3 text-center">Pause</th>
+                                <th scope="col" class="px-4 py-3 text-right">Aktion</th>
+                            </tr>
+                        </thead>
+                        <tbody id="entries-body">
+                            <!-- Entries go here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Manual Archive Button -->
+            <div class="text-center mt-8">
+                <button type="button" onclick="confirmArchive()" class="text-gray-400 hover:text-gray-600 text-sm underline">
+                    Manueller Abschluss (Archivieren)
+                </button>
+            </div>
+        </main>
+
+        <!-- VIEW 3: Archive List (Archiv) -->
+        <main id="view-archive" class="view-section hidden">
+            <div class="bg-white rounded-xl shadow-md p-4">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Archiv</h2>
+                <div id="archive-list" class="space-y-3">
+                    <!-- Archived months go here -->
+                </div>
+            </div>
+        </main>
+
+        <!-- VIEW 4: Archive Detail (Detail View) -->
+        <main id="view-archive-detail" class="view-section hidden">
+            <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
+                <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+                    <button onclick="toggleView('archive')" class="text-blue-600 font-semibold flex items-center text-sm">
+                        <i class="fas fa-arrow-left mr-1"></i> Zurück
+                    </button>
+                    <h3 id="archive-detail-title" class="font-bold text-gray-700 text-sm">Details</h3>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-gray-500">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-4 py-3">Datum</th>
+                                <th scope="col" class="px-4 py-3">Zeit</th>
+                                <th scope="col" class="px-4 py-3 text-center">Pause</th>
+                            </tr>
+                        </thead>
+                        <tbody id="archive-detail-body">
+                            <!-- Detail Entries go here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+    </div>
+
+    <!-- CUSTOM MODAL (Replaces Alert/Confirm) -->
+    <div id="custom-modal" class="fixed inset-0 bg-black bg-opacity-50 z-[60] hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 transform transition-all scale-100">
+            <h3 id="modal-title" class="text-lg font-bold text-gray-900 mb-2">Frage</h3>
+            <p id="modal-message" class="text-gray-600 mb-6 font-medium">Bist du sicher?</p>
+            <div class="flex justify-end space-x-3">
+                <button id="modal-cancel" class="px-4 py-2 text-gray-500 font-medium hover:text-gray-700 hover:bg-gray-50 rounded-lg transition">
+                    Nein
+                </button>
+                <button id="modal-confirm" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-md transition">
+                    Ja
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg opacity-0 transition-opacity duration-300 pointer-events-none z-50">
+        Gespeichert!
+    </div>
+
+    <script>
+        // --- State Management ---
+        let currentEntries = JSON.parse(localStorage.getItem('azj_entries')) || [];
+        let archives = JSON.parse(localStorage.getItem('azj_archives')) || [];
+        let currentView = 'input'; 
+        let currentShift = 'morning'; 
+
+        // Modal Callback storage
+        let modalConfirmCallback = null;
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            setupTimeInputs();
+            setupDraftAutoSave();
+
+            const draftLoaded = loadDraft();
+            if (!draftLoaded) {
+                document.getElementById('date').valueAsDate = new Date();
+            }
+            
+            renderTable();
+            checkAutoArchiveCondition();
+            updateNavigationStyles();
+
+            // Modal Listeners
+            document.getElementById('modal-cancel').addEventListener('click', closeModal);
+            document.getElementById('modal-confirm').addEventListener('click', () => {
+                if (modalConfirmCallback) modalConfirmCallback();
+                closeModal();
+            });
+        });
+
+        // --- Custom Modal Logic ---
+        function showConfirm(message, onConfirm) {
+            const modal = document.getElementById('custom-modal');
+            const msgEl = document.getElementById('modal-message');
+            
+            msgEl.textContent = message;
+            modalConfirmCallback = onConfirm;
+            
+            modal.classList.remove('hidden');
+            // Small animation class (optional)
+            modal.querySelector('div').classList.add('modal-enter-active');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('custom-modal');
+            modal.classList.add('hidden');
+            modalConfirmCallback = null;
+        }
+
+        // --- Core Functions ---
+
+        // Helper: Calculate minutes
+        function calcDiffMinutes(start, end) {
+            if (!start || !end || start.length < 5 || end.length < 5) return 0;
+            const [h1, m1] = start.split(':').map(Number);
+            const [h2, m2] = end.split(':').map(Number);
+            
+            if (isNaN(h1) || isNaN(m1) || isNaN(h2) || isNaN(m2)) return 0;
+
+            const date1 = new Date(0, 0, 0, h1, m1);
+            const date2 = new Date(0, 0, 0, h2, m2);
+            
+            let diff = (date2 - date1) / 1000 / 60; 
+            if (diff < 0) diff += 24 * 60; 
+            return Math.round(diff);
+        }
+
+        function addEntry() {
+            const date = document.getElementById('date').value;
+            let kommen = document.getElementById('kommen').value;
+            let gehen = document.getElementById('gehen').value;
+            
+            if (kommen.length === 4 && !kommen.includes(':')) {
+                 kommen = kommen.slice(0, 2) + ':' + kommen.slice(2);
+            }
+            if (gehen.length === 4 && !gehen.includes(':')) {
+                 gehen = gehen.slice(0, 2) + ':' + gehen.slice(2);
+            }
+
+            const p1s = document.getElementById('p1_start').value;
+            const p1e = document.getElementById('p1_end').value;
+            const p2s = document.getElementById('p2_start').value;
+            const p2e = document.getElementById('p2_end').value;
+            const p3s = document.getElementById('p3_start').value;
+            const p3e = document.getElementById('p3_end').value;
+
+            if (!date || !kommen || kommen.length < 4) {
+                showToast("Bitte Datum und Kommen eingeben!", true);
+                return;
+            }
+
+            const pm1 = calcDiffMinutes(p1s, p1e);
+            const pm2 = calcDiffMinutes(p2s, p2e);
+            const pm3 = calcDiffMinutes(p3s, p3e);
+            const totalPauseMin = pm1 + pm2 + pm3;
+
+            const entry = {
+                id: Date.now(),
+                date: date,
+                shift: currentShift, 
+                kommen: kommen,
+                gehen: gehen || "--:--",
+                pauses: [
+                    { start: p1s, end: p1e, min: pm1 },
+                    { start: p2s, end: p2e, min: pm2 },
+                    { start: p3s, end: p3e, min: pm3 }
+                ],
+                totalPause: totalPauseMin
+            };
+
+            currentEntries.unshift(entry);
+            saveData();
+            renderTable();
+            
+            resetForm();
+            clearDraft();
+            
+            showToast("Eintrag gespeichert");
+            checkAutoArchiveCondition();
+            
+            toggleView('list');
+        }
+
+        // Updated Delete with Custom Modal
+        function deleteEntry(id) {
+            const idNum = Number(id);
+            showConfirm("Bist du sicher?", () => {
+                currentEntries = currentEntries.filter(e => e.id !== idNum);
+                saveData();
+                renderTable();
+                checkAutoArchiveCondition();
+            });
+        }
+
+        function resetForm() {
+            document.getElementById('kommen').value = '';
+            document.getElementById('gehen').value = '';
+            document.querySelectorAll('.time-mask').forEach(el => el.value = '');
+            setShift('morning');
+        }
+
+        function saveData() {
+            localStorage.setItem('azj_entries', JSON.stringify(currentEntries));
+            localStorage.setItem('azj_archives', JSON.stringify(archives));
+        }
+
+        // --- Rendering ---
+        
+        // Helper to generate row HTML (reused for both Current and Archive)
+        function generateRowHtml(entry, isReadOnly = false) {
+            const dateObj = new Date(entry.date);
+            const day = dateObj.getDate().toString().padStart(2, '0');
+            const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+            const year = dateObj.getFullYear();
+            const dateStr = `${day}.${month}.${year}`;
+
+            let workDurationHtml = '<span class="text-gray-300">---</span>';
+            if (entry.gehen && entry.gehen !== "--:--" && entry.kommen) {
+                const rawMinutes = calcDiffMinutes(entry.kommen, entry.gehen);
+                const netMinutes = Math.max(0, rawMinutes - (entry.totalPause || 0));
+                const h = Math.floor(netMinutes / 60);
+                const m = netMinutes % 60;
+                workDurationHtml = `<span class="text-blue-600">${h}h ${m}m</span>`;
+            }
+
+            let pauseHtml = '';
+            if (entry.pauses && Array.isArray(entry.pauses)) {
+                pauseHtml = entry.pauses
+                    .filter(p => p.start || p.end)
+                    .map(p => {
+                        const s = p.start || '??:??';
+                        const e = p.end || '??:??';
+                        return `<div class="text-[10px] text-gray-500 leading-tight mt-0.5">${s} - ${e}</div>`;
+                    })
+                    .join('');
+            }
+
+            const shiftIcon = getShiftIcon(entry.shift || 'morning');
+
+            let actionCell = '';
+            if (!isReadOnly) {
+                actionCell = `
+                    <td class="px-4 py-3 text-right align-top pt-4">
+                        <button type="button" onclick="deleteEntry('${entry.id}')" class="text-red-400 hover:text-red-600 p-3 bg-red-50 hover:bg-red-100 rounded-full transition">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </td>
+                `;
+            }
+
+            return `
+                <tr class="bg-white border-b hover:bg-gray-50">
+                    <td class="px-4 py-3 font-medium text-gray-900 align-top pt-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            ${shiftIcon}
+                            ${dateStr}
+                        </div>
+                    </td>
+                    <td class="px-4 py-3 align-top">
+                        <div class="text-green-600 text-xs font-bold">IN: ${entry.kommen}</div>
+                        <div class="text-red-600 text-xs font-bold mb-1">OUT: ${entry.gehen}</div>
+                        <div class="text-xs font-bold pt-1 border-t border-gray-100 mt-1">
+                            Total: ${workDurationHtml}
+                        </div>
+                    </td>
+                    <td class="px-4 py-3 text-center align-top">
+                        <span class="bg-gray-100 text-gray-800 text-xs font-bold px-2 py-0.5 rounded">
+                            ${entry.totalPause}m
+                        </span>
+                        <div class="flex flex-col items-center mt-1">
+                            ${pauseHtml}
+                        </div>
+                    </td>
+                    ${actionCell}
+                </tr>
+            `;
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('entries-body');
+            const countBadge = document.getElementById('entry-count');
+            
+            countBadge.textContent = `${currentEntries.length} Tage`;
+            tbody.innerHTML = '';
+
+            if (currentEntries.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">Keine Einträge vorhanden</td></tr>';
+                return;
+            }
+
+            const sortedEntries = [...currentEntries].sort((a, b) => new Date(b.date) - new Date(a.date));
+            sortedEntries.forEach(entry => {
+                tbody.innerHTML += generateRowHtml(entry, false);
+            });
+        }
+
+        // --- Archiving Logic ---
+        function checkAutoArchiveCondition() {
+            const prompt = document.getElementById('archive-prompt');
+            if (currentEntries.length >= 27) {
+                prompt.classList.remove('hidden');
+            } else {
+                prompt.classList.add('hidden');
+            }
+        }
+
+        // Wrapper to confirm before archiving
+        function confirmArchive() {
+            if (currentEntries.length === 0) return;
+            showConfirm("Monat wirklich archivieren?", archiveCurrentList);
+        }
+
+        function archiveCurrentList() {
+            const dates = currentEntries.map(e => new Date(e.date));
+            const minDate = new Date(Math.min(...dates));
+            const maxDate = new Date(Math.max(...dates));
+            
+            const options = { year: 'numeric', month: 'long' };
+            const title = `${minDate.toLocaleDateString('de-DE', options)} (Abgeschlossen)`;
+
+            const archiveEntry = {
+                id: Date.now(),
+                title: title,
+                dateRange: `${minDate.toLocaleDateString('de-DE')} - ${maxDate.toLocaleDateString('de-DE')}`,
+                entries: [...currentEntries],
+                count: currentEntries.length
+            };
+
+            archives.unshift(archiveEntry);
+            currentEntries = [];
+            
+            saveData();
+            renderTable();
+            checkAutoArchiveCondition();
+            showToast("Erfolgreich archiviert!");
+            
+            toggleView('archive');
+            renderArchiveList();
+        }
+
+        function renderArchiveList() {
+            const container = document.getElementById('archive-list');
+            container.innerHTML = '';
+
+            if (archives.length === 0) {
+                container.innerHTML = '<p class="text-center text-gray-400 py-4">Keine Archive vorhanden.</p>';
+                return;
+            }
+
+            archives.forEach(arch => {
+                const div = document.createElement('div');
+                div.className = "bg-gray-50 p-4 rounded-lg border border-gray-200 flex justify-between items-center";
+                div.innerHTML = `
+                    <div>
+                        <h4 class="font-bold text-gray-800">${arch.title}</h4>
+                        <p class="text-xs text-gray-500">${arch.dateRange}</p>
+                        <p class="text-xs text-blue-600 mt-1">${arch.count} Einträge</p>
+                    </div>
+                    <button type="button" onclick="loadArchive(${arch.id})" class="text-blue-500 hover:text-blue-700 font-medium text-sm">
+                        Ansehen
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+        }
+        
+        // Updated: Show Full Details instead of Alert
+        function loadArchive(id) {
+            const arch = archives.find(a => a.id === id);
+            if(arch) {
+                const tbody = document.getElementById('archive-detail-body');
+                const title = document.getElementById('archive-detail-title');
+                
+                title.textContent = arch.title;
+                tbody.innerHTML = '';
+
+                if (arch.entries.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-8 text-center text-gray-400">Leer</td></tr>';
+                } else {
+                    const sorted = [...arch.entries].sort((a, b) => new Date(b.date) - new Date(a.date));
+                    sorted.forEach(entry => {
+                        tbody.innerHTML += generateRowHtml(entry, true); // true = read only
+                    });
+                }
+                
+                toggleView('archive-detail');
+            }
+        }
+
+        // --- Other Helpers (Inputs, Shifts, Drafts) ---
+        // (Kept exactly as before, just compacted for the single-file constraint)
+        function setupTimeInputs() {
+            const inputs = document.querySelectorAll('.time-mask');
+            inputs.forEach(input => {
+                input.addEventListener('input', function(e) {
+                    let val = e.target.value.replace(/\D/g, '');
+                    if (val.length > 4) val = val.slice(0, 4);
+                    if (val.length > 2) {
+                        e.target.value = val.slice(0, 2) + ':' + val.slice(2);
+                    } else {
+                        e.target.value = val;
+                    }
+                    if (e.target.id === 'kommen' && val.length >= 2) {
+                        autoDetectShift(e.target.value);
+                    }
+                });
+            });
+        }
+
+        function setupDraftAutoSave() {
+            const inputIds = ['date', 'kommen', 'gehen', 'p1_start', 'p1_end', 'p2_start', 'p2_end', 'p3_start', 'p3_end'];
+            inputIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) { el.addEventListener('input', saveDraft); el.addEventListener('change', saveDraft); }
+            });
+        }
+        function saveDraft() {
+            const draft = {
+                date: document.getElementById('date').value,
+                shift: currentShift,
+                kommen: document.getElementById('kommen').value,
+                gehen: document.getElementById('gehen').value,
+                p1_start: document.getElementById('p1_start').value,
+                p1_end: document.getElementById('p1_end').value,
+                p2_start: document.getElementById('p2_start').value,
+                p2_end: document.getElementById('p2_end').value,
+                p3_start: document.getElementById('p3_start').value,
+                p3_end: document.getElementById('p3_end').value
+            };
+            localStorage.setItem('azj_draft', JSON.stringify(draft));
+        }
+        function loadDraft() {
+            const savedDraft = localStorage.getItem('azj_draft');
+            if (savedDraft) {
+                try {
+                    const draft = JSON.parse(savedDraft);
+                    if(draft.date) document.getElementById('date').value = draft.date;
+                    if(draft.shift) setShift(draft.shift);
+                    if(draft.kommen) document.getElementById('kommen').value = draft.kommen;
+                    if(draft.gehen) document.getElementById('gehen').value = draft.gehen;
+                    if(draft.p1_start) document.getElementById('p1_start').value = draft.p1_start;
+                    if(draft.p1_end) document.getElementById('p1_end').value = draft.p1_end;
+                    if(draft.p2_start) document.getElementById('p2_start').value = draft.p2_start;
+                    if(draft.p2_end) document.getElementById('p2_end').value = draft.p2_end;
+                    if(draft.p3_start) document.getElementById('p3_start').value = draft.p3_start;
+                    if(draft.p3_end) document.getElementById('p3_end').value = draft.p3_end;
+                    return true;
+                } catch (e) { return false; }
+            }
+            return false;
+        }
+        function clearDraft() { localStorage.removeItem('azj_draft'); }
+        function setShift(shift) {
+            currentShift = shift;
+            document.querySelectorAll('.shift-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${shift}`).classList.add('active');
+            saveDraft(); 
+        }
+        function autoDetectShift(timeVal) {
+            if(!timeVal) return;
+            const hour = parseInt(timeVal.split(':')[0]);
+            if (isNaN(hour)) return;
+            if (hour >= 4 && hour < 12) setShift('morning');
+            else if (hour >= 12 && hour < 20) setShift('afternoon');
+            else setShift('night');
+        }
+        function getShiftIcon(shift) {
+            switch(shift) {
+                case 'morning': return '<i class="fas fa-sun text-yellow-500 mr-1"></i>';
+                case 'afternoon': return '<i class="fas fa-cloud-sun text-orange-500 mr-1"></i>';
+                case 'night': return '<i class="fas fa-moon text-indigo-500 mr-1"></i>';
+                default: return '';
+            }
+        }
+        function toggleView(viewName) {
+            currentView = viewName;
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`view-${viewName}`).classList.remove('hidden');
+            if (viewName === 'archive') { renderArchiveList(); }
+            updateNavigationStyles();
+        }
+        function updateNavigationStyles() {
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-800');
+                btn.classList.add('bg-blue-500');
+            });
+            // Handle detail view by highlighting archive button
+            const activeId = currentView === 'archive-detail' ? 'nav-archive' : `nav-${currentView}`;
+            const activeBtn = document.getElementById(activeId);
+            if (activeBtn) {
+                activeBtn.classList.remove('bg-blue-500');
+                activeBtn.classList.add('bg-blue-800');
+            }
+        }
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.style.backgroundColor = isError ? '#ef4444' : '#1f2937';
+            toast.style.opacity = '1';
+            setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+        }
+    </script>
+</body>
+</html>
